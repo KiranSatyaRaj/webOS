@@ -4,11 +4,6 @@ import {
   type ChatCompletionMessageParam,
   type MLCEngine,
 } from "@mlc-ai/web-llm";
-import { type StableDiffusionConfig } from "components/apps/StableDiffusion/types";
-import {
-  runStableDiffusion,
-  StableDiffusionLibs,
-} from "components/system/Desktop/Wallpapers/StableDiffusion";
 import {
   type WorkerMessage,
   type ConvoStyles,
@@ -142,38 +137,38 @@ globalThis.addEventListener(
           summarizer = await globalThis.ai.summarizer.create();
         }
 
-        if (data.imagePrompt && data.offscreenCanvas) {
-          globalThis.tvmjsGlobalEnv = globalThis.tvmjsGlobalEnv || {};
-          globalThis.tvmjsGlobalEnv.logger = (_type: string, message: string) =>
-            globalThis.postMessage({
-              progress: {
-                text: message,
-              },
-            });
+        // if (data.imagePrompt && data.offscreenCanvas) {
+        //   globalThis.tvmjsGlobalEnv = globalThis.tvmjsGlobalEnv || {};
+        //   globalThis.tvmjsGlobalEnv.logger = (_type: string, message: string) =>
+        //     globalThis.postMessage({
+        //       progress: {
+        //         text: message,
+        //       },
+        //     });
 
-          try {
-            globalThis.importScripts(...StableDiffusionLibs);
-          } catch {
-            // Ignore failure to load libs
-          }
+        //   try {
+        //     globalThis.importScripts(...StableDiffusionLibs);
+        //   } catch {
+        //     // Ignore failure to load libs
+        //   }
 
-          await runStableDiffusion(
-            {
-              prompts: [[data.imagePrompt, ""]],
-            } as StableDiffusionConfig,
-            data.offscreenCanvas,
-            true,
-            false
-          );
+        // await runStableDiffusion(
+        //   {
+        //     prompts: [[data.imagePrompt, ""]],
+        //   } as StableDiffusionConfig,
+        //   data.offscreenCanvas,
+        //   true,
+        //   false
+        // );
 
-          globalThis.tvmjsGlobalEnv.logger("", "");
+        // globalThis.tvmjsGlobalEnv.logger("", "");
 
-          if (data.hasWindowAI) {
-            rebuildSession(
-              "I'll try to create that using Stable Diffusion 1.5."
-            );
-          }
-        } else {
+        // if (data.hasWindowAI) {
+        //   rebuildSession(
+        //     "I'll try to create that using Stable Diffusion 1.5."
+        //   );
+        // }
+        else {
           while (retry++ < 3 && !response) {
             if (cancel) break;
 

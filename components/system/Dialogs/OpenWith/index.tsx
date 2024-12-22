@@ -19,14 +19,12 @@ const INCLUDED_PROCESSES = new Set([
   "MonacoEditor",
   "OpenType",
   "PDF",
-  "Paint",
   "Photos",
   "Ruffle",
   "TinyMCE",
   "V86",
   "VideoPlayer",
   "Vim",
-  "Webamp",
 ]);
 
 type OpenWithEntryProps = {

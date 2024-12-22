@@ -20,8 +20,8 @@ export const WALLPAPER_PATHS: Record<
     import("components/system/Desktop/Wallpapers/ShaderToy/CoastalLandscape"),
   HEXELLS: () => import("components/system/Desktop/Wallpapers/hexells"),
   MATRIX: () => import("components/system/Desktop/Wallpapers/Matrix"),
-  STABLE_DIFFUSION: () =>
-    import("components/system/Desktop/Wallpapers/StableDiffusion"),
+  // STABLE_DIFFUSION: () =>
+  //   import("components/system/Desktop/Wallpapers/StableDiffusion"),
   VANTA: () => import("components/system/Desktop/Wallpapers/vantaWaves"),
 };
 
@@ -42,11 +42,11 @@ export const WALLPAPER_WORKERS: Record<string, (info?: string) => Worker> = {
       ),
       { name: "Wallpaper (Hexells)" }
     ),
-  STABLE_DIFFUSION: (): Worker =>
-    new Worker(
-      new URL("components/apps/StableDiffusion/sd.worker", import.meta.url),
-      { name: "Wallpaper (Stable Diffusion)" }
-    ),
+  // STABLE_DIFFUSION: (): Worker =>
+  //   new Worker(
+  //     new URL("components/apps/StableDiffusion/sd.worker", import.meta.url),
+  //     { name: "Wallpaper (Stable Diffusion)" }
+  //   ),
   VANTA: (info?: string): Worker =>
     new Worker(
       new URL(
@@ -87,11 +87,11 @@ export const WALLPAPER_MENU: WallpaperMenuItem[] = [
     id: "SLIDESHOW",
     name: "Picture Slideshow",
   },
-  {
-    id: "STABLE_DIFFUSION",
-    name: "Stable Diffusion (beta)",
-    requiresWebGPU: true,
-  },
+  // {
+  //   id: "STABLE_DIFFUSION",
+  //   name: "Stable Diffusion (beta)",
+  //   requiresWebGPU: true,
+  // },
   {
     id: "VANTA",
     name: "Vanta Waves",

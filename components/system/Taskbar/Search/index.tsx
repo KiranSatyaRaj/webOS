@@ -75,9 +75,7 @@ type TabData = {
 
 export const NO_RESULTS = "NO_RESULTS";
 
-const SUGGESTED = ["FileExplorer", "Terminal", "Messenger", "Browser", "Paint"];
-
-const GAMES = ["SpaceCadet", "Quake3", "DXBall"];
+const SUGGESTED = ["FileExplorer", "Terminal", "Browser"];
 
 const METADATA = {
   Documents: {
@@ -356,30 +354,6 @@ const Search: FC<SearchProps> = ({ toggleSearch }) => {
                     <Games />
                     Games for you
                   </figcaption>
-                  <ol>
-                    {GAMES.filter(
-                      (game) =>
-                        !(menuWidth < 360 && game === "Quake3") &&
-                        !(menuWidth < 260 && game === "SpaceCadet")
-                    ).map(
-                      (game) =>
-                        directory[game] && (
-                          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
-                          <li
-                            key={game}
-                            onClick={() => openApp(game)}
-                            title={directory[game].title}
-                          >
-                            <Icon
-                              displaySize={56}
-                              imgSize={96}
-                              src={directory[game].icon}
-                            />
-                            <h4>{directory[game].title}</h4>
-                          </li>
-                        )
-                    )}
-                  </ol>
                 </figure>
               </section>
             </StyledSections>

@@ -548,9 +548,9 @@ const AIChat: FC<AIChatProps> = ({ toggleAI }) => {
                       width={512}
                     />
                     <div className="prompt">&quot;{text}&quot;</div>
-                    <div className="powered-by">
+                    {/* <div className="powered-by">
                       <div>Powered by Stable Diffusion 1.5</div>
-                    </div>
+                    </div> */}
                   </div>
                 )}
               </div>

@@ -16,7 +16,7 @@ const types = {
   },
   AudioPlaylist: {
     icon: "audio",
-    process: ["Webamp"],
+    process: ["VideoPlayer"],
     type: "Audio Playlist File",
   },
   DiscImage: {
@@ -39,7 +39,7 @@ const types = {
     type: "FutureSplash File",
   },
   GraphicsEditor: {
-    process: ["Photos", "Paint"],
+    process: ["Photos"],
     type: "Picture File",
   },
   HtmlDocument: {
@@ -67,7 +67,7 @@ const types = {
   },
   Music: {
     icon: "audio",
-    process: ["Webamp", "VideoPlayer"],
+    process: ["VideoPlayer"],
   },
   PdfDocument: {
     icon: "pdf",
@@ -96,7 +96,7 @@ const types = {
   },
   WinampSkin: {
     icon: "audio",
-    process: ["Webamp", "FileExplorer"],
+    process: ["FileExplorer"],
     type: "Winamp Skin File",
   },
   WysiwygHtmlDocument: {
