@@ -191,7 +191,7 @@ export const PROCESS_DELIMITER = "__";
 
 export const SAVE_PATH = `${HOME}/Snapshots`;
 
-export const PICUTRES_PATH = `${HOME}/Pictures`;
+export const PICTURES_PATH = `${HOME}/Pictures`;
 
 export const SHORTCUT_APPEND = " - Shortcut";
 
@@ -341,7 +341,7 @@ export const DEFAULT_SCROLLBAR_WIDTH = 17;
 export const TASKBAR_HEIGHT = 30;
 
 export const PACKAGE_DATA = {
-  alias: "daedalOS",
+  alias: "webOS",
   author: {
     email: "dustinbrett@gmail.com",
     name: "Dustin Brett",
