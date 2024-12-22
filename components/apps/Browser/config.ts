@@ -1,5 +1,3 @@
-import { FAVICON_BASE_PATH } from "utils/constants";
-
 type Bookmark = {
   icon: string;
   name: string;
@@ -15,11 +13,6 @@ export const DINO_GAME = {
 };
 
 export const bookmarks: Bookmark[] = [
-  {
-    icon: FAVICON_BASE_PATH,
-    name: "daedalOS",
-    url: "https://dustinbrett.com/",
-  },
   {
     icon: "/System/Icons/Favicons/dir.webp",
     name: "Index of /",
@@ -40,16 +33,6 @@ export const bookmarks: Bookmark[] = [
     icon: "/System/Icons/Favicons/archive.webp",
     name: "Internet Archive",
     url: "https://archive.org/",
-  },
-  {
-    icon: "/System/Icons/Favicons/win96.webp",
-    name: "Windows 96",
-    url: "https://windows96.net/",
-  },
-  {
-    icon: "/System/Icons/Favicons/aos.webp",
-    name: "AaronOS",
-    url: "https://aaronos.dev/",
   },
 ];
 
