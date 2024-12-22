@@ -200,20 +200,14 @@ export const START_BUTTON_MENU_ITEMS = [
 
 export const START_MENU_APPS = [
   /^Browser$/,
-  /^DevTools$/,
-  /^IRC$/,
   /^Marked$/,
-  /^Messenger$/,
   /^Monaco Editor$/,
-  /^Paint$/,
   /^PDF$/,
   /^Photo Viewer$/,
-  /^Stable Diffusion$/,
   /^Terminal$/,
   /^TinyMCE$/,
   /^Video Player$/,
   /^Vim$/,
-  /^Webamp$/,
 ];
 
 export const START_MENU_FOLDERS = {

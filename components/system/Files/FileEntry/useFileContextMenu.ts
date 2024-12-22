@@ -1,5 +1,4 @@
 import { basename, dirname, extname, join } from "path";
-import { type URLTrack } from "webamp";
 import { useMemo } from "react";
 import { type FileStat } from "components/system/Files/FileManager/functions";
 import { EXTRACTABLE_EXTENSIONS } from "components/system/Files/FileEntry/constants";
@@ -23,10 +22,8 @@ import processDirectory from "contexts/process/directory";
 import { useSession } from "contexts/session";
 import { useProcessesRef } from "hooks/useProcessesRef";
 import {
-  AUDIO_PLAYLIST_EXTENSIONS,
   CURSOR_FILE_EXTENSIONS,
   DESKTOP_PATH,
-  EDITABLE_IMAGE_FILE_EXTENSIONS,
   IMAGE_FILE_EXTENSIONS,
   MENU_SEPERATOR,
   MOUNTABLE_EXTENSIONS,
@@ -82,13 +79,7 @@ const useFileContextMenu = (
 ): ContextMenuCapture => {
   const { minimize, open, url: changeUrl } = useProcesses();
   const processesRef = useProcessesRef();
-  const {
-    aiEnabled,
-    setCursor,
-    setForegroundId,
-    setWallpaper,
-    updateRecentFiles,
-  } = useSession();
+  const { aiEnabled, setCursor, setForegroundId, setWallpaper } = useSession();
   const baseName = basename(path);
   const isFocusedEntry = focusedEntries.includes(baseName);
   const openFile = useFile(url, path);
@@ -358,42 +349,6 @@ const useFileContextMenu = (
                 });
               }
 
-              const canEncodePlaylist =
-                pathExtension !== ".m3u" &&
-                AUDIO_PLAYLIST_EXTENSIONS.has(pathExtension);
-
-              if (canEncodePlaylist) {
-                menuItems.unshift(MENU_SEPERATOR, {
-                  action: () => {
-                    absoluteEntries().forEach(async (absoluteEntry) => {
-                      const newFilePath = `${dirname(absoluteEntry)}/${basename(
-                        absoluteEntry,
-                        extname(absoluteEntry)
-                      )}.m3u`;
-                      const { createM3uPlaylist, tracksFromPlaylist } =
-                        await import("components/apps/Webamp/functions");
-                      const playlist = createM3uPlaylist(
-                        (await tracksFromPlaylist(
-                          (await readFile(absoluteEntry)).toString(),
-                          getExtension(absoluteEntry)
-                        )) as URLTrack[]
-                      );
-                      const playlistDirName = dirname(path);
-
-                      updateFolder(
-                        playlistDirName,
-                        await createPath(
-                          basename(newFilePath),
-                          playlistDirName,
-                          Buffer.from(playlist)
-                        )
-                      );
-                    });
-                  },
-                  label: "Convert to M3U",
-                });
-              }
-
               const opensInFileExplorer = pid === "FileExplorer";
 
               if (
@@ -475,16 +430,6 @@ const useFileContextMenu = (
                 rootFs?.mntMap[path].getName() !== "FileSystemAccess"
               ),
             label: "Disconnect",
-          });
-        }
-
-        if (EDITABLE_IMAGE_FILE_EXTENSIONS.has(urlExtension)) {
-          menuItems.unshift({
-            action: () => {
-              open("Paint", { url });
-              if (url) updateRecentFiles(url, "Paint");
-            },
-            label: "Edit",
           });
         }
 
@@ -680,7 +625,6 @@ const useFileContextMenu = (
       stats,
       unMapFs,
       updateFolder,
-      updateRecentFiles,
       url,
     ]
   );
