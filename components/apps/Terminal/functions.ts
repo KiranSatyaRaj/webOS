@@ -1,10 +1,25 @@
+/* eslint-disable no-use-before-define */
+
+/* eslint-disable regexp/no-super-linear-backtracking */
+/* eslint-disable sonarjs/different-types-comparison */
+
+/* eslint-disable no-param-reassign */
+/* eslint-disable no-cond-assign */
+
+/* eslint-disable no-await-in-loop */
+
+/* eslint-disable @typescript-eslint/no-shadow */
+
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
+/* eslint-disable no-shadow */
+
 import { extname } from "path";
-import { colorAttributes, rgbAnsi } from "components/apps/Terminal/color";
-import { commands as gitCommands } from "components/apps/Terminal/processGit";
-import { type LocalEcho } from "components/apps/Terminal/types";
-import { resourceAliasMap } from "components/system/Dialogs/Run";
 import processDirectory from "contexts/process/directory";
+import { colorAttributes, rgbAnsi } from "components/apps/Terminal/color";
+import { type LocalEcho } from "components/apps/Terminal/types";
 import { ONE_DAY_IN_MILLISECONDS } from "utils/constants";
+import { resourceAliasMap } from "components/system/Dialogs/Run";
 
 export const help = (
   printLn: (message: string) => void,
@@ -26,7 +41,9 @@ export const help = (
 };
 
 export const commands: Record<string, string> = {
+  bash: "Executes a Bash script.",
   cd: "Changes the current directory.",
+  chmod: "Changes file permissions.",
   clear: "Clears the screen.",
   color: "Specifies color attribute of console output.",
   copy: "Copies a file to another location.",
@@ -34,7 +51,9 @@ export const commands: Record<string, string> = {
   del: "Deletes a file.",
   dir: "Displays list of entries in current directory.",
   echo: "Displays messages that are passed to it.",
+  env: "Displays all environment variables.",
   exit: "Quits the command interpreter.",
+  export: "Exports a variable.",
   ffmpeg: "Convert audio or video file to another format.",
   file: "Detects the MIME type of the file.",
   find: "Searches for a text string in a file or files.",
@@ -74,7 +93,9 @@ export const commands: Record<string, string> = {
 };
 
 export const aliases: Record<string, string[]> = {
+  bash: ["sh", "shell"],
   cd: ["chdir"],
+  chmod: ["changeperm", "chmode"],
   clear: ["cls"],
   copy: ["cp"],
   del: ["erase"],
@@ -102,9 +123,11 @@ export const aliases: Record<string, string[]> = {
 };
 
 const directoryCommands = new Set([
+  "bash",
   "cat",
   "cd",
   "chdir",
+  "chmod",
   "copy",
   "cp",
   "del",
@@ -138,6 +161,170 @@ const directoryCommands = new Set([
   "xlsx",
 ]);
 
+const variables: Record<string, string> = {
+  HOME: "/home/user",
+  PERMISSIONS: "",
+  USER: "default",
+};
+
+const handleChmod = (command: string): string => {
+  const match = /^chmod\s+([+\-xrw]+)\s+(.+)$/.exec(command);
+  if (match) {
+    const [, permissions, file] = match;
+    // Mocked logic for chmod
+    variables.PERMISSIONS = `${file}:${permissions}`;
+    return `Permissions for '${file}' set to '${permissions}' (mocked).`;
+  }
+  return "Invalid chmod command.";
+};
+
+// --- Utility Functions ---
+const expandVariables = (command: string): string =>
+  command.replace(/\$([a-z_]\w*)/gi, (_, varName) => variables[varName] ?? "");
+
+// --- Command Substitution ---
+const handleCommandSubstitution = async (
+  command: string,
+  executeCommand: (cmd: string) => Promise<string>
+): Promise<string> => {
+  const regex = /\$\(([^)]+)\)|`([^`]+)`/g;
+  let match;
+  while ((match = regex.exec(command))) {
+    const subCommand = match[1] || match[2];
+    const result = await executeCommand(subCommand.trim());
+    command = command.replace(match[0], result.trim());
+  }
+  return command;
+};
+
+// --- Pipes and Redirection ---
+const handlePipesAndRedirection = async (
+  command: string,
+  executeCommand: (cmd: string) => Promise<string>
+): Promise<string> => {
+  const commands = command.split("|").map((cmd) => cmd.trim());
+  let output = "";
+  for (let i = 0; i < commands.length; i++) {
+    const cmd = commands[i];
+    const processedCmd = await handleCommandSubstitution(
+      expandVariables(cmd),
+      executeCommand
+    );
+    const result = await executeCommand(processedCmd);
+    if (i < commands.length - 1) {
+      output += `${result}\n`;
+    } else {
+      return result;
+    }
+  }
+  return output;
+};
+
+// --- Parse and Execute Commands ---
+export const parseAndExecuteCommand = async (
+  commandString: string,
+  executeCommand: (cmd: string) => Promise<string>
+): Promise<string> => {
+  try {
+    if (exportVariable(commandString)) return "";
+    const expandedCommand = expandVariables(commandString);
+    return await handlePipesAndRedirection(expandedCommand, executeCommand);
+  } catch (error) {
+    return error instanceof Error ? `Error: ${error.message}` : "Unknown error";
+  }
+};
+
+// --- Validate Commands ---
+export const validateCommand = (
+  command: string,
+  validCommands: Record<string, string>
+): boolean => {
+  const [baseCommand] = command.split(" ");
+  return validCommands[baseCommand] !== undefined;
+};
+
+// --- Apply Aliases ---
+export const applyAliasExpansion = (
+  command: string,
+  aliasMap: Record<string, string[]>
+): string => {
+  const [baseCommand, ...args] = command.split(" ");
+  const expandedCommand = Object.entries(aliasMap).find(([, aliases]) =>
+    aliases.includes(baseCommand)
+  )?.[0];
+  return expandedCommand ? `${expandedCommand} ${args.join(" ")}` : command;
+};
+
+const exportVariable = (command: string): boolean => {
+  const match = /^export\s+([a-zA-Z_]\w*)=(.+)$/.exec(command);
+  if (match) {
+    const [, varName, value] = match;
+    variables[varName] = value;
+    return true;
+  }
+  return false;
+};
+
+// // --- Execute Bash Script ---
+// const executeBashScript = async (
+//   script: string,
+//   executeCommand: (cmd: string) => Promise<string>
+// ): Promise<string> => {
+//   const lines = script.split("\n").filter((line) => line.trim() !== "");
+//   let output = "";
+//   for (const line of lines) {
+//     const result = await parseAndExecuteCommand(line, executeCommand);
+//     output += `${result}\n`;
+//   }
+//   return output.trim();
+// };
+
+// --- Script Execution ---
+// type FileSystem = Record<
+//   string,
+//   {
+//     content: string;
+//     executable: boolean;
+//   }
+// >;
+
+// const fileSystem: FileSystem = {};
+
+const executeBashScript = async (
+  script: string,
+  executeCommand: (cmd: string) => Promise<string>
+): Promise<string> => {
+  const lines = script.split("\n");
+  let output = "";
+  for (const line of lines) {
+    const processedLine = await parseAndExecuteCommand(line, executeCommand);
+    output += `${processedLine}\n`;
+  }
+  return output.trim();
+};
+
+export const executeCommand = async (cmd: string): Promise<string> => {
+  if (cmd.startsWith("echo")) {
+    return cmd.replace(/^echo\s+/, "");
+  }
+  if (cmd === "date") {
+    return new Date().toString();
+  }
+  if (cmd.startsWith("chmod")) {
+    return handleChmod(cmd);
+  }
+  if (cmd.startsWith("bash")) {
+    const script = cmd.replace(/^bash\s+/, "");
+    return await executeBashScript(script, executeCommand);
+  }
+  if (cmd.startsWith("export")) {
+    return exportVariable(cmd) ? "" : "Invalid export command.";
+  }
+  return `Command not found: ${cmd}`;
+};
+
+// --- Auto-Completion ---
+// Removed duplicate autoComplete function
 export const unknownCommand = (baseCommand: string): string =>
   `'${baseCommand}' is not recognized as an internal or external command, operable program or batch file.`;
 
@@ -156,7 +343,7 @@ export const autoComplete = (
     if (index === 1) {
       const lowerCommand = command.toLowerCase();
 
-      if (lowerCommand === "git") return Object.keys(gitCommands);
+      if (lowerCommand === "git") return Object.keys(commands);
       if (directoryCommands.has(lowerCommand)) return directory;
 
       const lowerProcesses = Object.entries(processDirectory)

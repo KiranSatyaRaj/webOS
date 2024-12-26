@@ -1,5 +1,5 @@
 import { extname } from "path";
-import { type ITerminalOptions, type Terminal } from "xterm";
+import { type IDisposable, type Terminal } from "xterm";
 import {
   useCallback,
   useEffect,
@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { config } from "components/apps/Terminal/config";
 import {
   autoComplete,
   readClipboardToTerminal,
@@ -14,6 +15,7 @@ import {
 import {
   type FitAddon,
   type LocalEcho,
+  type OnKeyEvent,
 } from "components/apps/Terminal/types";
 import useCommandInterpreter from "components/apps/Terminal/useCommandInterpreter";
 import { type ContainerHookProps } from "components/system/Apps/AppContainer";
@@ -25,47 +27,26 @@ import useResizeObserver from "hooks/useResizeObserver";
 import { HOME, PACKAGE_DATA, PREVENT_SCROLL } from "utils/constants";
 import { getExtension, haltEvent, loadFiles } from "utils/functions";
 
-const { license, version } = PACKAGE_DATA;
-
-const UBUNTU_CONFIG: ITerminalOptions = {
-  allowProposedApi: true,
-  allowTransparency: true,
-  cursorBlink: true,
-  cursorStyle: "block" as const,
-  fontFamily: "Ubuntu Mono, monospace",
-  fontSize: 14,
-  lineHeight: 1.2,
-  scrollback: 10000,
-  theme: {
-    background: "#000000",
-    black: "#000000",
-    blue: "#42A5F5",
-    brightBlack: "#6272A4",
-    brightBlue: "#D6ACFF",
-    brightCyan: "#A4FFFF",
-    brightGreen: "#69FF94",
-    brightMagenta: "#FF92DF",
-    brightRed: "#FF6E6E",
-    brightWhite: "#FFFFFF",
-    brightYellow: "#FFFFA5",
-    cursor: "#FFFFFF",
-    cursorAccent: "#2C001E",
-    cyan: "#8BE9FD",
-    green: "#4FF04F",
-    magenta: "#FF79C6",
-    red: "#FF5555",
-    white: "#F8F8F2",
-    yellow: "#FFB86C",
-  },
-};
-
-const PROMPT_CHARACTER = (currentDir: string): string => `:${currentDir}$ `;
+const { alias, license, version } = PACKAGE_DATA;
 
 export const displayLicense = `${license} License`;
 
 export const displayVersion = (): string => {
   const { __NEXT_DATA__: { buildId } = {} } = window;
+
   return `${version}${buildId ? `-${buildId}` : ""}`;
+};
+
+// Add new Linux-style prompt configuration
+const LINUX_PROMPT = {
+  hostname: "daedalOS",
+  promptChar: "$",
+  user: "user",
+};
+
+const getPromptString = (currentDir: string): string => {
+  const shortDir = currentDir.replace(HOME, "~");
+  return `\r\n${LINUX_PROMPT.user}@${LINUX_PROMPT.hostname}:${shortDir}${LINUX_PROMPT.promptChar} `;
 };
 
 const useTerminal = ({
@@ -90,9 +71,6 @@ const useTerminal = ({
   const autoFit = useCallback(() => fitAddon?.fit(), [fitAddon]);
   const { foregroundId } = useSession();
 
-  const username = useRef(process.env.USER || "user");
-  const hostname = useRef(window.location.hostname || "localhost");
-
   useEffect(() => {
     if (url) {
       if (localEcho) {
@@ -114,7 +92,7 @@ const useTerminal = ({
 
   useEffect(() => {
     loadFiles(libs).then(() => {
-      if (window.Terminal) setTerminal(new window.Terminal(UBUNTU_CONFIG));
+      if (window.Terminal) setTerminal(new window.Terminal(config));
     });
   }, [libs]);
 
@@ -136,17 +114,12 @@ const useTerminal = ({
       terminal.open(containerRef.current);
       newFitAddon.fit();
 
-      const containerElement = containerRef.current;
-      if (containerElement) {
-        containerElement.style.overflow = "auto";
-        containerElement.style.height = "100%";
-      }
-
       setFitAddon(newFitAddon);
       setLocalEcho(newLocalEcho);
 
-      containerElement?.addEventListener("contextmenu", (event) => {
+      containerRef.current.addEventListener("contextmenu", (event) => {
         haltEvent(event);
+
         const textSelection = terminal.getSelection();
 
         if (textSelection) {
@@ -156,8 +129,7 @@ const useTerminal = ({
           readClipboardToTerminal(newLocalEcho);
         }
       });
-
-      containerElement
+      containerRef.current
         ?.closest("section")
         ?.addEventListener(
           "focus",
@@ -174,17 +146,36 @@ const useTerminal = ({
   }, [closing, containerRef, loading, setLoading, terminal]);
 
   useEffect(() => {
+    let currentOnKey: IDisposable;
+
+    if (terminal && localEcho) {
+      terminal.textarea?.setAttribute("enterkeyhint", "send");
+      currentOnKey = terminal.onKey(
+        ({ domEvent: { ctrlKey, code } }: OnKeyEvent) => {
+          if (ctrlKey && code === "KeyV") {
+            readClipboardToTerminal(localEcho);
+          }
+        }
+      );
+    }
+
+    return () => currentOnKey?.dispose();
+  }, [localEcho, terminal]);
+
+  useEffect(() => {
     if (localEcho && terminal && !prompted) {
       const prompt = (): Promise<void> =>
         localEcho
-          .read(
-            `\r\n${username.current}@${hostname.current}${PROMPT_CHARACTER(cd.current)}`
-          )
+          .read(getPromptString(cd.current))
           .then((command) => processCommand.current?.(command).then(prompt));
+
+      // Change welcome message to Linux style
+      localEcho.println(`Welcome to ${alias} ${displayVersion()}`);
+      localEcho.println(`Type 'help' to see list of available commands.`);
 
       if (initialCommand) {
         localEcho.println(
-          `\r\n${username.current}@${hostname.current}${PROMPT_CHARACTER(cd.current)}${initialCommand}\r\n`
+          `${getPromptString(cd.current)}${initialCommand}\r\n`
         );
         localEcho.history.entries = [initialCommand];
         processCommand.current(initialCommand).then(prompt);

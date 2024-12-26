@@ -1,3 +1,5 @@
+/* eslint-disable no-bitwise */
+/* eslint-disable no-await-in-loop */
 import { basename, dirname, extname, isAbsolute, join } from "path";
 import { type Terminal } from "xterm";
 import { useTheme } from "styled-components";
@@ -17,7 +19,6 @@ import {
   autoComplete,
   commands,
   formatToExtension,
-  getFreeSpace,
   getUptime,
   help,
   parseCommand,
@@ -41,18 +42,16 @@ import {
 import { resourceAliasMap } from "components/system/Dialogs/Run";
 import extensions from "components/system/Files/FileEntry/extensions";
 import {
-  getModifiedTime,
   getProcessByFileExtension,
   getShortcutInfo,
 } from "components/system/Files/FileEntry/functions";
 import { useFileSystem } from "contexts/fileSystem";
-import { requestPermission, resetStorage } from "contexts/fileSystem/functions";
+import { resetStorage } from "contexts/fileSystem/functions";
 import { useProcesses } from "contexts/process";
 import processDirectory from "contexts/process/directory";
 import { useSession } from "contexts/session";
 import { useProcessesRef } from "hooks/useProcessesRef";
 import {
-  DEFAULT_LOCALE,
   DESKTOP_PATH,
   HIGH_PRIORITY_REQUEST,
   MILLISECONDS_IN_SECOND,
@@ -113,7 +112,6 @@ const useCommandInterpreter = (
     readFile,
     rename,
     rootFs,
-    stat,
     updateFolder,
     writeFile,
   } = useFileSystem();
@@ -343,9 +341,7 @@ const useCommandInterpreter = (
             break;
           }
           case "clear":
-          case "cls":
-            terminal?.reset();
-            terminal?.write(`\u001Bc${colorOutput.current.join("")}`);
+            terminal?.write("\u001B[H\u001B[2J");
             break;
           case "date":
             printLn(
@@ -372,103 +368,27 @@ const useCommandInterpreter = (
           case "ls": {
             const [directory = ""] = commandArgs;
             const listDir = async (dirPath: string): Promise<void> => {
-              let totalSize = 0;
-              let fileCount = 0;
-              let directoryCount = 0;
-              let entries = await readdir(dirPath);
+              const entries = await readdir(dirPath);
 
-              if (
-                entries.length === 0 &&
-                rootFs?.mntMap[dirPath]?.getName() === "FileSystemAccess"
-              ) {
-                await requestPermission(dirPath);
-                entries = await readdir(dirPath);
+              for (const entry of entries) {
+                const filePath = join(dirPath, entry);
+                const stats = await lstat(filePath);
+                const isDir = stats.isDirectory();
+
+                if (isDir) {
+                  print(`\u001B[1;34m${entry}/\u001B[0m  `);
+                } else if (stats.mode & 0o111) {
+                  print(`\u001B[1;32m${entry}\u001B[0m  `);
+                } else {
+                  print(`${entry}  `);
+                }
               }
-
-              const timeFormatter = new Intl.DateTimeFormat(DEFAULT_LOCALE, {
-                timeStyle: "short",
-              });
-              const entriesWithStats = await Promise.all(
-                entries
-                  .filter(
-                    (entry) =>
-                      (!directory.startsWith("*") ||
-                        entry.endsWith(directory.slice(1))) &&
-                      (!directory.endsWith("*") ||
-                        entry.startsWith(directory.slice(0, -1)))
-                  )
-                  .map(async (entry) => {
-                    const filePath = join(dirPath, entry);
-                    const fileStats = await stat(filePath);
-                    const mDate = new Date(
-                      getModifiedTime(filePath, fileStats)
-                    );
-                    const date = mDate.toISOString().slice(0, 10);
-                    const time = timeFormatter.format(mDate).padStart(8, "0");
-                    const isDirectory = fileStats.isDirectory();
-
-                    totalSize += isDirectory ? 0 : fileStats.size;
-                    if (isDirectory) {
-                      directoryCount += 1;
-                    } else {
-                      fileCount += 1;
-                    }
-
-                    return [
-                      `${date}  ${time}`,
-                      isDirectory
-                        ? "<DIR>        "
-                        : fileStats.size.toLocaleString(),
-                      entry,
-                    ];
-                  })
-              );
-              printLn(` Directory of ${dirPath}`);
               printLn("");
-
-              const fullSizeTerminal =
-                !localEcho?._termSize?.cols || localEcho?._termSize?.cols > 52;
-
-              printTable(
-                [
-                  ["Date", fullSizeTerminal ? 22 : 20],
-                  [
-                    "Type/Size",
-                    fullSizeTerminal ? 15 : 13,
-                    true,
-                    (size) => (size === "-1" ? "" : size),
-                  ],
-                  ["Name", terminal?.cols ? terminal.cols - 40 : 30],
-                ],
-                entriesWithStats,
-                printLn,
-                true
-              );
-              printLn(
-                `\t\t${fileCount} File(s)\t${totalSize.toLocaleString()} bytes`
-              );
-              printLn(`\t\t${directoryCount} Dir(s)${await getFreeSpace()}`);
             };
 
-            if (
-              directory &&
-              !directory.startsWith("*") &&
-              !directory.endsWith("*")
-            ) {
-              const fullPath = await getFullPath(directory);
-
-              if (await exists(fullPath)) {
-                if ((await lstat(fullPath)).isDirectory()) {
-                  await listDir(fullPath);
-                } else {
-                  printLn(basename(fullPath));
-                }
-              } else {
-                printLn("File Not Found");
-              }
-            } else {
-              await listDir(cd.current);
-            }
+            await listDir(
+              directory ? await getFullPath(directory) : cd.current
+            );
             break;
           }
           case "echo":
@@ -697,12 +617,23 @@ const useCommandInterpreter = (
           case "ren":
           case "rename": {
             const [source, destination] = commandArgs;
+
+            if (!source) {
+              printLn("mv: missing file operand");
+              break;
+            }
+
+            if (!destination) {
+              printLn(`mv: missing destination file operand after '${source}'`);
+              break;
+            }
+
             const fullSourcePath = await getFullPath(source);
 
             if (await exists(fullSourcePath)) {
-              if (destination) {
-                let fullDestinationPath = await getFullPath(destination);
+              let fullDestinationPath = await getFullPath(destination);
 
+              try {
                 if (
                   ["move", "mv"].includes(lcBaseCommand) &&
                   (await exists(fullDestinationPath)) &&
@@ -718,11 +649,17 @@ const useCommandInterpreter = (
                   updateFile(fullSourcePath, true);
                   updateFile(fullDestinationPath);
                 }
-              } else {
-                printLn(SYNTAX_ERROR);
+              } catch (error: unknown) {
+                if ((error as { code?: string }).code === "EACCES") {
+                  printLn(`mv: cannot move '${source}': Permission denied`);
+                } else if ((error as { code?: string }).code === "EEXIST") {
+                  printLn(`mv: cannot move '${source}': File exists`);
+                } else {
+                  printLn(`mv: cannot move '${source}': Operation failed`);
+                }
               }
             } else {
-              printLn(FILE_NOT_FILE);
+              printLn(`mv: cannot stat '${source}': No such file or directory`);
             }
             break;
           }
@@ -1249,7 +1186,6 @@ const useCommandInterpreter = (
       readdir,
       rename,
       rootFs,
-      stat,
       terminal,
       themeName,
       updateFile,
